@@ -1,0 +1,54 @@
+1)
+Another approach - We can use the priority switch which was used in the Linux-like scheduler. The process that has the highest goodness value (it uses the round-robin strategy if there are processes with the same goodness value) can be given the lock. The process that holds lock will keep running without being preempted.
+
+Priority inheritance in locks and semaphores are clear in the foll. test case. In case of lock implementation, write process inherits priority from the other two reader processes so that it appreas that it gets the higher priority which explains the reason for it holding the lock. But in semaphore implementation, the writer process does not inherit priority, so even when it is having lower priority it is holding the semaphore.
+
+Semaphore priority inversion
+
+SEMAPHORES:::
+-start writer, then sleep 1s. sem granted to write (prio 20)
+  writer Sem: to acquire sem
+  writer Sem: acquired sem, sleep 10s
+-start reader A, then sleep 1s. reader A(prio 25) blocked on the lock
+  reader A Sem: to acquire sem
+priority of writer:20
+-start reader B, then sleep 1s. reader B(prio 30) blocked on the lock
+  reader B Sem: to acquire sem
+priority of writer:20
+-kill reader B, then sleep 1s
+priority of writer:20
+-kill reader A, then sleep 1s
+priority of writer:20
+  writer Sem: to release sem
+
+Locks priority inversion
+
+LOCKS:::
+-start writer, then sleep 1s. lock granted to write (prio 20)
+  writer Lock: to acquire lock
+  writer Lock: acquired lock, sleep 10s
+-start reader A, then sleep 1s. reader A(prio 25) blocked on the lock
+  reader A Lock: to acquire lock
+priority of writer:25
+-start reader B, then sleep 1s. reader B(prio 30) blocked on the lock
+  reader B Lock: to acquire lock
+priority of writer:30
+-kill reader B, then sleep 1s
+priority of writer:25
+-kill reader A, then sleep 1s
+priority of writer:20
+  writer Lock: to release lock
+
+2)
+In the code given, multiple readers can enter the do_update function. This causes all the readers to acquire lock.
+After this, the try_update function is called.
+All the readers will try to update the value of global_buf by calling the buffer_add function. This leads to synchronization issues as all reader processes are updating the same value.
+For eg., if a reader called Reader A updates value, another reader called Reader B will overwrite the already written value. This causes the change by previous buffer to be lost. And the next time Reader A writes into the buffer it will not know this, and it will start updating value from next buffer instance.
+	
+One possible thread interleaving that would trigger the problem is,
+Reader A
+resched()	(This happens when Reader A is writing the value into buffer)
+ReaderB
+resched()	(This happens when Reader B is writing the value into buffer)
+ReaderA
+resched()
